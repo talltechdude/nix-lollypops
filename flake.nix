@@ -178,6 +178,7 @@
 
                           rebuild = {
                             dir = self;
+                            interactive = true;
 
                             desc = "Rebuild configuration of: ${hostName}";
                             deps = [ "check-vars" ];
