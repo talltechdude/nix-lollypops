@@ -89,7 +89,9 @@
                   mkTaskFileForHost = hostName: hostConfig: pkgs.writeText "CommonTasks.yml"
                     (builtins.toJSON {
                       version = "3";
-                      output = "prefixed";
+                      
+                      # output = "prefixed";
+
                       # Set global shell options:
                       # set -o pipefail -e
                       set = [
