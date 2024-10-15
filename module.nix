@@ -194,6 +194,21 @@ in
             type = types.listOf types.str;
             description = "Commands for the task.";
           };
+          interactive = mkOption {
+            type = types.bool;
+            default = true;
+            description = "Enables interactive mode to return command output more reliably";
+          };
+          status = mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            description = "Programmatic checks to indicate a task is up to date. If no error is returned (exit status 0), the task is considered up-to-date";
+          };
+          preconditions = mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            description = "Programmatic checks to cancel the execution of a task and its dependencies. If no error is returned (exit status 0) for all tasks, the task is run";
+          };
         };
       });
       default = { };
