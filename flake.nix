@@ -11,6 +11,9 @@
     {
       nixosModules.lollypops = import ./module.nix;
       nixosModules.default = self.nixosModules.lollypops;
+      
+      darwinModules.lollypops = self.nixosModules.lollypops;
+      darwinModules.default = self.darwinModules.lollypops;
 
       hmModule = import ./hm-module.nix;
 
@@ -257,7 +260,12 @@
                           {
                             taskfile = mkTaskFileForHost name value;
                           })
-                        configFlake.nixosConfigurations;
+                        configFlake.nixosConfigurations // builtins.mapAttrs
+                        (name: value:
+                          {
+                            taskfile = mkTaskFileForHost name value;
+                          })
+                        configFlake.darwinConfigurations;                        
 
                       # Define grouped tasks to run all tasks for one host.
                       # E.g. to make a complete deployment for host "server01":
@@ -266,10 +274,16 @@
                       tasks = builtins.mapAttrs
                         (name: value:
                           {
-                            desc = "Provision host: ${name}";
+                            desc = "Provision NixOS host: ${name}";
                             cmds = map (task: { task = "${name}:${task}"; }) value.config.lollypops.tasks;
                           })
                         configFlake.nixosConfigurations // builtins.mapAttrs
+                        (name: value:
+                          {
+                            desc = "Provision macOS host: ${name}";
+                            cmds = map (task: { task = "${name}:${task}"; }) value.config.lollypops.tasks;
+                          })
+                        configFlake.darwinConfigurations // builtins.mapAttrs
                         (groupName: hosts:
                           {
                             desc = "Provision group: ${groupName}";
