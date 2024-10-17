@@ -210,7 +210,7 @@ in
             description = "Programmatic checks to cancel the execution of a task and its dependencies. If no error is returned (exit status 0) for all tasks, the task is run";
           };
           vars = mkOption {
-            type = types.listOf types.attrs;
+            type = types.attrs;
             default = {};
             description = "Additional variables to set for this task only";
           };
