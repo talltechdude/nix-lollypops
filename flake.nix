@@ -90,7 +90,7 @@
                     (builtins.toJSON {
                       version = "3";
                       
-                      # output = "prefixed";
+                      output = "prefixed";
 
                       # Set global shell options:
                       # set -o pipefail -e
@@ -117,12 +117,13 @@
                           useSudo = hostConfig.config.lollypops.deployment.sudo.enable;
                         in
                         with pkgs.lib; {
-
+                      
+                        } // pkgs.lib.optionalAttrs (pkgs.lib.elem "check-vars" hostConfig.config.lollypops.tasks) {    
                           check-vars.preconditions = [{
                             sh = ''[ ! -z "{{.HOSTNAME}}" ]'';
                             msg = "HOSTNAME not set: {{.HOSTNAME}}";
                           }];
-
+                        } // pkgs.lib.optionalAttrs (pkgs.lib.elem "deploy-secrets" hostConfig.config.lollypops.tasks) {    
                           deploy-secrets =
                             let
                               mkSeclist = config: lists.flatten (map
@@ -177,7 +178,7 @@
                                 else [ ]
                               );
                             };
-
+                        } // pkgs.lib.optionalAttrs (pkgs.lib.elem "rebuild" hostConfig.config.lollypops.tasks) {
                           rebuild = {
                             dir = self;
                             interactive = true;
@@ -198,7 +199,7 @@
                               '')
                             ];
                           };
-
+                        } // pkgs.lib.optionalAttrs (pkgs.lib.elem "deploy-flake" hostConfig.config.lollypops.tasks) {
                           deploy-flake = {
 
                             deps = [ "check-vars" ];
@@ -228,7 +229,8 @@
                             ];
                           };
                         } // hostConfig.config.lollypops.extraTasks;
-                    });
+                      }
+                    );
 
 
                   # Group hosts by their group name
@@ -295,8 +297,37 @@
                         hostGroups // {
                         # Add special task called "all" which has all hosts as
                         # dependency to deploy all hosts at once
-                        all.deps = map (x: { task = x; }) (builtins.attrNames configFlake.nixosConfigurations);
-                      };
+                        all.deps = map (x: { task = x; }) (builtins.concatLists [(builtins.attrNames configFlake.nixosConfigurations) (builtins.attrNames configFlake.darwinConfigurations)]);
+
+                        # "all:build".cmds = map (x: { task = "${x}:check-vars"; ignore_error = true; }) (builtins.concatLists [(builtins.filter (name: pkgs.lib.elem "build" (configFlake.nixosConfigurations.${name}.config.lollypops.tasks or [])) (builtins.attrNames configFlake.nixosConfigurations)) (builtins.filter (name: pkgs.lib.elem "build" (configFlake.darwinConfigurations.${name}.config.lollypops.tasks or [])) (builtins.attrNames configFlake.darwinConfigurations))]);
+                        # "all:diff".deps = map (x: { task = "${x}:diff"; }) (builtins.concatLists [(builtins.attrNames configFlake.nixosConfigurations) (builtins.attrNames configFlake.darwinConfigurations)]);
+                        # "all:switch".deps = map (x: { task = "${x}:switch"; }) (builtins.concatLists [(builtins.attrNames configFlake.nixosConfigurations) (builtins.attrNames configFlake.darwinConfigurations)]);
+                        } //
+                          (
+                          let
+                            # Function to extract tasks from configurations
+                            extractTasks = configs: builtins.concatMap (name: (configs.${name}.config.lollypops.tasks or [])) (builtins.attrNames configs);
+
+                            # Extract tasks from both nixos and darwin configurations
+                            nixosTasks = extractTasks configFlake.nixosConfigurations;
+                            darwinTasks = extractTasks configFlake.darwinConfigurations;
+
+                            # Combine all tasks and remove duplicates
+                            allTasks = pkgs.lib.unique (builtins.concatLists [nixosTasks darwinTasks]);
+
+                            # Function to create commands for each task
+                            createCommands = task: {
+                              cmds = map (name: { task = "${name}:${task}"; ignore_error = true; }) (builtins.concatLists [
+                                (builtins.filter (name: pkgs.lib.elem task (configFlake.nixosConfigurations.${name}.config.lollypops.tasks or [])) (builtins.attrNames configFlake.nixosConfigurations))
+                                (builtins.filter (name: pkgs.lib.elem task (configFlake.darwinConfigurations.${name}.config.lollypops.tasks or [])) (builtins.attrNames configFlake.darwinConfigurations))
+                              ]);
+                              desc = "Run ${task} om all hosts";
+                            };
+                          in
+                          # Generate a set of commands for each task
+                          builtins.listToAttrs (map (task: { name = "all:${task}"; value = createCommands task;}) allTasks)
+                          )
+                      ;
                     });
                 in
                 flake-utils.lib.mkApp
