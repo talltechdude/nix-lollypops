@@ -214,6 +214,10 @@ in
             default = {};
             description = "Additional variables to set for this task only";
           };
+          prompt = mkOption {
+            type = types.str;
+            description = "Prompt to show the user before proceeding";
+          };
         };
       });
       default = { };
