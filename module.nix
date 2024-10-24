@@ -216,6 +216,7 @@ in
           };
           prompt = mkOption {
             type = types.str;
+            default = "";
             description = "Prompt to show the user before proceeding";
           };
         };
